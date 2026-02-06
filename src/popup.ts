@@ -1,4 +1,5 @@
 import { toNotionPaste, type SavedPost } from "./format/notionTemplate";
+import { toWeeklyDigest } from "./notionDigestTemplate";
 
 const key = "saved_posts_v1";
 
@@ -67,6 +68,24 @@ async function render(root: HTMLElement) {
   };
 
   root.appendChild(templateBtn);
+
+  const digestBtn = document.createElement("button");
+  digestBtn.textContent = "🗞 Copy Weekly Digest";
+  digestBtn.onclick = async () => {
+    const posts = await getHistory();
+    if (posts.length === 0) {
+      alert("No saved posts yet");
+      return;
+    }
+
+    const digest = toWeeklyDigest(posts.slice(0, 7));
+    await navigator.clipboard.writeText(digest);
+    digestBtn.textContent = "Copied Digest ✅";
+    setTimeout(() => {
+      digestBtn.textContent = "🗞 Copy Weekly Digest";
+    }, 1200);
+  };
+  root.appendChild(digestBtn);
 
   const h = el("h3");
   h.textContent = "Saved (last 20)";
