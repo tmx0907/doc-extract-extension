@@ -1,5 +1,5 @@
 // 아주 단순 버전: 클릭한 요소의 텍스트를 복사 (Markdown은 2단계에서)
-import { toNotionPaste, type SavedPost } from "./format/notionTemplate";
+import type { SavedPost } from "./format/notionTemplate";
 
 let enabled = false;
 
@@ -7,6 +7,33 @@ let overlayEl: HTMLDivElement | null = null;
 let toastEl: HTMLDivElement | null = null;
 const key = "saved_posts_v1";
 let lastHandledAt = 0;
+
+function toNotionPaste(post: SavedPost) {
+  return [
+    `# ${post.title || "Untitled"}`,
+    ``,
+    `Author: ${post.author || "unknown"}`,
+    `URL: ${post.url || "unknown"}`,
+    `Saved At: ${post.savedAtISO}`,
+    `Filter Stage: [통과 / 보류 / 지뢰]`,
+    `Topic: [프로그래밍 언어 / 자동화 / AI / 마인드셋]`,
+    ``,
+    `---`,
+    ``,
+    `## Original`,
+    post.rawText || "",
+    ``,
+    `## Easy Explanation (LLM)`,
+    `- (paste LLM output here)`,
+    ``,
+    `## Newbie Landmines`,
+    `- (what will break beginners?)`,
+    ``,
+    `## Connected Thinkers`,
+    `- @someone — why`,
+    ``,
+  ].join("\n");
+}
 
 function ensureUI() {
   if (!overlayEl) {
