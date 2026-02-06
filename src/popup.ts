@@ -17,10 +17,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
   return node;
 }
 
-async function main() {
-  const root = document.getElementById("app");
-  if (!root) return;
-
+async function render(root: HTMLElement) {
   const list = await getHistory();
   const top = list.slice(0, 20);
 
@@ -66,4 +63,21 @@ async function main() {
   });
 }
 
-main();
+async function main() {
+  const root = document.getElementById("app");
+  if (!root) return;
+
+  await render(root);
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local" || !(key in changes)) return;
+    void render(root);
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    void render(root);
+  });
+}
+
+void main();
