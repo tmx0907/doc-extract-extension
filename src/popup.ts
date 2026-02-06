@@ -1,5 +1,5 @@
 import { toNotionPaste, type SavedPost } from "./format/notionTemplate";
-import { toWeeklyDigest } from "./notionDigestTemplate";
+import { getDigestId, toWeeklyDigest } from "./notionDigestTemplate";
 
 const key = "saved_posts_v1";
 
@@ -16,6 +16,13 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
   const node = document.createElement(tag);
   if (className) node.className = className;
   return node;
+}
+
+function toLocalDateStamp(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 async function toggleExtractMode() {
@@ -86,6 +93,29 @@ async function render(root: HTMLElement) {
     }, 1200);
   };
   root.appendChild(digestBtn);
+
+  const publishedBtn = document.createElement("button");
+  publishedBtn.textContent = "🧷 Copy Published Template";
+  publishedBtn.onclick = async () => {
+    const now = new Date();
+    const date = toLocalDateStamp(now);
+    const digestId = getDigestId(now);
+    const publishedTemplate = [
+      "# [Published]",
+      "Platform: Threads",
+      `Date: ${date}`,
+      "Link: ",
+      `Published From (Digest link): ${digestId}`,
+      "",
+    ].join("\n");
+
+    await navigator.clipboard.writeText(publishedTemplate);
+    publishedBtn.textContent = "Copied Published ✅";
+    setTimeout(() => {
+      publishedBtn.textContent = "🧷 Copy Published Template";
+    }, 1200);
+  };
+  root.appendChild(publishedBtn);
 
   const h = el("h3");
   h.textContent = "Saved (last 20)";

@@ -1,5 +1,5 @@
 // 아주 단순 버전: 클릭한 요소의 텍스트를 복사 (Markdown은 2단계에서)
-import type { SavedPost } from "./format/notionTemplate";
+import type { FilterStage, SavedPost, Topic } from "./format/notionTemplate";
 
 let enabled = false;
 
@@ -8,6 +8,99 @@ let toastEl: HTMLDivElement | null = null;
 const key = "saved_posts_v1";
 let lastHandledAt = 0;
 
+function includesAny(text: string, words: string[]) {
+  return words.some((w) => text.includes(w));
+}
+
+function classifyTopic(text: string): Topic {
+  const t = text.toLowerCase();
+  const scores: Record<Topic, number> = {
+    "프로그래밍 언어": 0,
+    자동화: 0,
+    AI: 0,
+    마인드셋: 0,
+  };
+
+  if (includesAny(t, ["python", "javascript", "typescript", "java", "go", "rust", "c++", "sql"])) {
+    scores["프로그래밍 언어"] += 2;
+  }
+  if (includesAny(t, ["syntax", "compiler", "runtime", "debug", "refactor", "type"])) {
+    scores["프로그래밍 언어"] += 1;
+  }
+
+  if (includesAny(t, ["automation", "automate", "workflow", "cron", "zapier", "n8n", "script"])) {
+    scores["자동화"] += 2;
+  }
+  if (includesAny(t, ["pipeline", "task", "integration", "trigger"])) {
+    scores["자동화"] += 1;
+  }
+
+  if (includesAny(t, ["ai", "llm", "gpt", "prompt", "rag", "agent", "model"])) {
+    scores["AI"] += 2;
+  }
+  if (includesAny(t, ["inference", "hallucination", "embedding", "fine-tuning", "fine tuning"])) {
+    scores["AI"] += 1;
+  }
+
+  if (includesAny(t, ["mindset", "habit", "focus", "discipline", "career", "learn", "learning"])) {
+    scores["마인드셋"] += 1;
+  }
+
+  let best: Topic = "마인드셋";
+  let bestScore = -1;
+  (Object.keys(scores) as Topic[]).forEach((topic) => {
+    if (scores[topic] > bestScore) {
+      best = topic;
+      bestScore = scores[topic];
+    }
+  });
+
+  return best;
+}
+
+function classifyFilterStage(text: string): FilterStage {
+  const t = text.toLowerCase();
+
+  const riskSignals = [
+    "guaranteed",
+    "100x",
+    "overnight",
+    "get rich quick",
+    "no effort",
+    "secret trick",
+    "must buy",
+    "pump",
+    "all you need",
+    "zero risk",
+  ];
+  if (includesAny(t, riskSignals)) return "지뢰";
+
+  const practicalSignals = [
+    "step",
+    "example",
+    "tradeoff",
+    "why",
+    "because",
+    "docs",
+    "documentation",
+    "benchmark",
+    "test",
+    "error",
+    "fix",
+  ];
+  if (includesAny(t, practicalSignals)) return "통과";
+
+  return "보류";
+}
+
+function classifyPost(title: string, rawText: string): { filterStage: FilterStage; topic: Topic } {
+  const full = `${title}\n${rawText}`;
+  return {
+    filterStage: classifyFilterStage(full),
+    topic: classifyTopic(full),
+  };
+}
+
 function toNotionPaste(post: SavedPost) {
   return [
     `# ${post.title || "Untitled"}`,
@@ -15,8 +108,8 @@ function toNotionPaste(post: SavedPost) {
     `Author: ${post.author || "unknown"}`,
     `URL: ${post.url || "unknown"}`,
     `Saved At: ${post.savedAtISO}`,
-    `Filter Stage: [통과 / 보류 / 지뢰]`,
-    `Topic: [프로그래밍 언어 / 자동화 / AI / 마인드셋]`,
+    `Filter Stage: ${post.filterStage || "보류"}`,
+    `Topic: ${post.topic || "마인드셋"}`,
     ``,
     `---`,
     ``,
@@ -100,12 +193,16 @@ async function onPick(e: PointerEvent) {
   console.log("DocExtract pick", el);
 
   const text = (el as HTMLElement).innerText?.trim() || "";
+  const title = text?.split("\n")[0]?.slice(0, 80) ?? "";
+  const classified = classifyPost(title, text);
   const saved: SavedPost = {
-    title: text?.split("\n")[0]?.slice(0, 80) ?? "",
+    title,
     author: "",
     url: location.href ?? "",
     savedAtISO: new Date().toISOString(),
     rawText: text ?? "",
+    filterStage: classified.filterStage,
+    topic: classified.topic,
   };
 
   let savedOk = false;
