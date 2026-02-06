@@ -17,11 +17,34 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
   return node;
 }
 
+async function toggleExtractMode() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) {
+    alert("No active tab");
+    return;
+  }
+
+  try {
+    await chrome.tabs.sendMessage(tab.id, { type: "TOGGLE_EXTRACT_MODE" });
+    console.log("TOGGLE_EXTRACT_MODE sent", tab.id);
+  } catch (err) {
+    console.error("TOGGLE_EXTRACT_MODE failed", err);
+    alert("Open a normal webpage tab and try again.");
+  }
+}
+
 async function render(root: HTMLElement) {
   const list = await getHistory();
   const top = list.slice(0, 20);
 
   root.innerHTML = "";
+
+  const modeBtn = document.createElement("button");
+  modeBtn.textContent = "🟥 Toggle Extract Mode";
+  modeBtn.onclick = async () => {
+    await toggleExtractMode();
+  };
+  root.appendChild(modeBtn);
 
   const templateBtn = document.createElement("button");
   templateBtn.textContent = "📄 Paste as Notion Template";
@@ -48,6 +71,12 @@ async function render(root: HTMLElement) {
   const h = el("h3");
   h.textContent = "Saved (last 20)";
   root.appendChild(h);
+
+  if (top.length === 0) {
+    const hint = el("p");
+    hint.textContent = "No saved posts yet. Toggle extract mode, then click a post.";
+    root.appendChild(hint);
+  }
 
   top.forEach((item) => {
     const row = el("div", "row");
