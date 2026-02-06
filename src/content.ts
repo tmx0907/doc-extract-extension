@@ -6,6 +6,7 @@ let enabled = false;
 let overlayEl: HTMLDivElement | null = null;
 let toastEl: HTMLDivElement | null = null;
 const key = "saved_posts_v1";
+let lastHandledAt = 0;
 
 function ensureUI() {
   if (!overlayEl) {
@@ -57,13 +58,19 @@ function onMove(e: MouseEvent) {
   setOverlay(rect);
 }
 
-async function onClick(e: MouseEvent) {
+async function onPick(e: PointerEvent) {
   if (!enabled) return;
+  if (e.button !== 0) return; // left click only
   const el = e.target as Element | null;
   if (!el || isOurUI(el)) return;
 
+  const now = Date.now();
+  if (now - lastHandledAt < 250) return;
+  lastHandledAt = now;
+
   e.preventDefault();
   e.stopPropagation();
+  console.log("DocExtract pick", el);
 
   const text = (el as HTMLElement).innerText?.trim() || "";
   const saved: SavedPost = {
@@ -115,13 +122,13 @@ function enable() {
   enabled = true;
   ensureUI();
   document.addEventListener("mousemove", onMove, { passive: true });
-  document.addEventListener("click", onClick, true);
+  document.addEventListener("pointerdown", onPick, true);
   toast("Extract Mode ON");
 }
 function disable() {
   enabled = false;
   document.removeEventListener("mousemove", onMove);
-  document.removeEventListener("click", onClick, true);
+  document.removeEventListener("pointerdown", onPick, true);
   setOverlay(null);
   toast("Extract Mode OFF");
 }
