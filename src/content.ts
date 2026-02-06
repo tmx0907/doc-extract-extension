@@ -5,6 +5,7 @@ let enabled = false;
 
 let overlayEl: HTMLDivElement | null = null;
 let toastEl: HTMLDivElement | null = null;
+const key = "saved_posts_v1";
 
 function ensureUI() {
   if (!overlayEl) {
@@ -72,13 +73,40 @@ async function onClick(e: MouseEvent) {
     savedAtISO: new Date().toISOString(),
     rawText: text ?? "",
   };
-  const res = await chrome.runtime.sendMessage({ type: "SAVE_POST", saved });
-  if (res?.ok !== true) {
+
+  let savedOk = false;
+  try {
+    const res = await chrome.runtime.sendMessage({ type: "SAVE_POST", saved });
+    savedOk = res?.ok === true;
+    if (!savedOk) console.warn("SAVE_POST message not ok", res);
+  } catch (err) {
+    console.error("SAVE_POST message failed", err);
+  }
+
+  if (!savedOk) {
+    try {
+      const existing = await chrome.storage.local.get(key);
+      const list: SavedPost[] = Array.isArray(existing[key]) ? existing[key] : [];
+      list.unshift(saved);
+      await chrome.storage.local.set({ [key]: list.slice(0, 200) });
+      savedOk = true;
+      console.log("Saved via content-script fallback");
+    } catch (err) {
+      console.error("Fallback save failed", err);
+    }
+  }
+
+  if (!savedOk) {
     toast("저장 실패");
     return;
   }
+
   const notionText = toNotionPaste(saved);
-  await navigator.clipboard.writeText(notionText);
+  try {
+    await navigator.clipboard.writeText(notionText);
+  } catch (err) {
+    console.error("Clipboard write failed", err);
+  }
 
   toast("Copied ✅");
 }
